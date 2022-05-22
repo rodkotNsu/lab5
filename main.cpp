@@ -46,7 +46,7 @@ pthread_t receiverThread;
 pthread_t executorThread;
 
 pthread_mutex_t executorMutex;
-pthread_mutex_t receiverMutex;
+
 
 void errorHandler(string message){
     cerr<<message<<endl;
@@ -186,22 +186,23 @@ void* consumerRequests(void* args){
             pthread_exit(nullptr);
         }
 
-        pthread_mutex_lock(&receiverMutex);
+        pthread_mutex_lock(&executorMutex);
      
-        if(currentTask + inadmissibleValue > TaskList.size()){
+        if(((double)(TaskList.size()-currentTask)/(double)TaskList.size())+(double)(tasksReceived)/(double)TaskList.size() > 1.5){
             code = 0;
         }
-        pthread_mutex_unlock(&receiverMutex);
+
+        pthread_mutex_unlock(&executorMutex);
 
         MPI_Send(&code, 1, MPI_INT, status.MPI_SOURCE, RESPONSE_TAG, MPI_COMM_WORLD);
         if(code == 0){
             continue;
         }
 
-        pthread_mutex_lock(&receiverMutex);
+        pthread_mutex_lock(&executorMutex);
         Task taskToSend = TaskList.back();
         TaskList.pop_back();
-        pthread_mutex_unlock(&receiverMutex);
+        pthread_mutex_unlock(&executorMutex);
 
         MPI_Send(&taskToSend, sizeof(Task), MPI_BYTE, status.MPI_SOURCE, TASK_TAG, MPI_COMM_WORLD);
 
@@ -213,7 +214,7 @@ void* consumerRequests(void* args){
 
 void start(){
     pthread_mutex_init(&executorMutex, nullptr);
-    pthread_mutex_init(&receiverMutex, nullptr);
+   // pthread_mutex_init(&receiverMutex, nullptr);
 
     int statusReceiver = pthread_create(&receiverThread, nullptr, consumerRequests, nullptr);
     int statusExecutor = pthread_create(&executorThread, nullptr, doTasks, nullptr);
@@ -230,7 +231,7 @@ void start(){
     }
 
     pthread_mutex_destroy(&executorMutex);
-    pthread_mutex_destroy(&receiverMutex);
+    //(&receiverMutex);
 }
 
 int main(int argc, char* argv[]){
